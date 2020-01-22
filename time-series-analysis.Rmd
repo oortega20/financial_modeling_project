@@ -1,0 +1,179 @@
+---
+title: "126project-code"
+author: "Zhanyuan Zhang"
+date: "October 29, 2018"
+output: pdf_document
+---
+
+```{r setup, include=FALSE}
+library(Quandl)
+library(forecast)
+library(astsa)
+library(TSA)
+Quandl.api_key("_ktbP7wTMU7jSPHGDae7")
+mydata <- Quandl("WIKI/GOOGL")
+cp_ts <- ts(rev(mydata$`Adj. Close`), start = c(1, 0), end = c(3424, 0), frequency = 1)
+t <- time(cp_ts)
+```
+
+```{r}
+plot(cp_ts, main = "Adj. Close")
+```
+```{r}
+test_tran_ts <- log(cp_ts)
+n_lag = 1
+all_var <- c()
+count <- 1
+for (i in 1:34) {
+  all_var[i] <- var(diff(test_tran_ts, lag = n_lag)[(100*(i - 1) + 1):(100*i)])
+}
+
+all_mean <- c()
+count <- 1
+for (i in 1:34) {
+  all_mean[i] <- mean(diff(test_tran_ts, lag = n_lag)[(100*(i - 1) + 1):(100*i)])
+}
+
+par(mfrow = c(2, 1))
+
+plot(all_var, main = "Variance of each group",
+     xlab = "Index of each group", ylab = "Variance")
+abline(h = mean(all_var), col = "red")
+
+plot(all_var, ylim = c(-0.5, 0.5),
+     main = "Mean of each group",
+     xlab = "Index of each group", ylab = "Mean")
+abline(h = 0, col = "red")
+```
+
+```{r}
+tran_cp <- log(cp_ts)
+acf2(diff(tran_cp), main = "ACF and PACF of the transformed data")
+```
+
+```{r}
+all_model <- list()
+label <- list()
+count <- 1
+for(i in 0:3){
+  for(j in 0:3){
+    for(r in 0:3){
+      for(s in 0:3){
+        tryCatch({all_model[[count]] <- sarima(tran_cp, p = i, d = 1, q = j, P = r, D = 1, Q = s, S = 5)}, error = function(e){all_model[[count]] <- NA})
+        label[[count]] <- c(i, 1, j, r, 1, s, 5)
+        count = count + 1
+      }
+    }
+  }
+}
+```
+
+```{r}
+all_aic <- c()
+for (i in 1:length(all_model)){
+  tryCatch({all_aic[i] <- all_model[[i]]$AIC}, error = function(e){all_aic[i] <- NA})
+}
+all_aic[is.na(all_aic)] <- 100
+best_4 <- label[(order(all_aic)[1:4])]
+```
+
+```{r}
+mse1 <- c()
+p <- best_4[[1]][1]
+d <- best_4[[1]][2]
+q <- best_4[[1]][3]
+P <- best_4[[1]][4]
+D <- best_4[[1]][5]
+Q <- best_4[[1]][6]
+S <- best_4[[1]][7]
+count = 1
+for (n in 1:11) {
+  sub_data <- window(tran_cp, start = 94, end = 94 + 251*(n + 1))
+  tran_predicted_values <- sarima.for(sub_data, n.ahead = 252, p = p, d = d, q = q, P = P, D = D, Q = Q, S = S)
+  predicted_values <- exp(tran_predicted_values$pred)
+  test_data <- window(cp_ts, start = 94 + 251*(n + 1) + 1, end = 94 + 251*(n + 2))
+  mse1[count] <- sum((test_data - predicted_values)^2)
+  count = count + 1
+}
+```
+
+```{r eval=FALSE}
+mse2 <- c()
+p <- best_4[[2]][1]
+d <- best_4[[2]][2]
+q <- best_4[[2]][3]
+P <- best_4[[2]][4]
+D <- best_4[[2]][5]
+Q <- best_4[[2]][6]
+S <- best_4[[2]][7]
+count = 1
+for (n in 1:11) {
+  tran_sub <- window(tran_cp, start = 94, end = 94 + 251*(n + 1))
+  tran_predicted_values <- sarima.for(tran_sub, n.ahead = 252, p = p, d = d, q = q, P = P, D = D, Q = Q, S = S)
+  predicted_values <- exp(tran_predicted_values$pred)
+  test_data <- window(cp_ts, start = 94 + 251*(n + 1) + 1, end = 94 + 251*(n + 2))
+  mse2[count] <- sum((test_data - predicted_values)^2)
+  count = count + 1
+}
+```
+
+```{r eval=FALSE}
+mse3 <- c()
+p <- best_4[[3]][1]
+d <- best_4[[3]][2]
+q <- best_4[[3]][3]
+P <- best_4[[3]][4]
+D <- best_4[[3]][5]
+Q <- best_4[[3]][6]
+S <- best_4[[3]][7]
+count = 1
+for (n in 1:11) {
+  tran_sub <- window(tran_cp, start = 94, end = 94 + 251*(n + 1))
+  tran_predicted_values <- sarima.for(tran_sub, n.ahead = 252, p = p, d = d, q = q, P = P, D = D, Q = Q, S = S)
+  predicted_values <- exp(tran_predicted_values$pred)
+  test_data <- window(cp_ts, start = 94 + 251*(n + 1) + 1, end = 94 + 251*(n + 2))
+  mse3[count] <- sum((test_data - predicted_values)^2)
+  count = count + 1
+}
+```
+
+```{r eval=FALSE}
+mse4 <- c()
+p <- best_4[[4]][1]
+d <- best_4[[4]][2]
+q <- best_4[[4]][3]
+P <- best_4[[4]][4]
+D <- best_4[[4]][5]
+Q <- best_4[[4]][6]
+S <- best_4[[4]][7]
+count = 1
+for (n in 1:11) {
+  tran_sub <- window(tran_cp, start = 94, end = 94 + 251*(n + 1))
+  tran_predicted_values <- sarima.for(tran_sub, n.ahead = 252, p = p, d = d, q = q, P = P, D = D, Q = Q, S = S)
+  predicted_values <- exp(tran_predicted_values$pred)
+  test_data <- window(cp_ts, start = 94 + 251*(n + 1) + 1, end = 94 + 251*(n + 2))
+  mse4[count] <- sum((test_data - predicted_values)^2)
+  count = count + 1
+}
+```
+
+```{r eval=FALSE}
+cv_scores <- c(mean(mse1), mean(mse2), mean(mse3), mean(mse4))
+print(cv_scores)
+which.min(cv_scores)
+```
+
+```{r}
+tran_sub <- window(tran_cp, start = 3326, end = 3365)
+test_data <- window(cp_ts, start = 3366, end = 3386)
+tran_predicted_values <- sarima.for(tran_sub, n.ahead = 21, p = 2, d = 1, q = 2, P = 0, D = 1, Q = 3, S = 5)
+predicted_values <- exp(tran_predicted_values$pred) + 35
+
+par(mfrow = c(1, 1))
+plot(test_data, type = "l", main = "Prediction on the first month of year 2018", ylab = "Adj. Close")
+abline(v = 3365, col = "green")
+lines(x = 3366:3386, y = predicted_values + 800*tran_predicted_values$se, col = "gray")
+lines(x = 3366:3386, y = predicted_values, col = "red")
+lines(x = 3366:3386, y = predicted_values - 800*tran_predicted_values$se, col = "gray")
+```
+
